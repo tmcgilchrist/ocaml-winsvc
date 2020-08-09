@@ -25,7 +25,6 @@
 
 static value cb_service_run = Val_unit;
 static value cb_service_stop = Val_unit;
-static value *exn_service = caml_named_value("Service.Error");;
 static char *s_service_name = NULL;
 
 void call_service_run(void) {
@@ -96,9 +95,9 @@ void service_main(DWORD argc, TCHAR **argv) {
   report_status(SERVICE_STOPPED, NO_ERROR, 2000);
 }
 
-#define raise_error(str) caml_raise_with_string(*exn_service, str)
+#define raise_error(str) caml_raise_with_string(*caml_named_value("caml_service_exn"), str)
 
-CAMLprim value caml_service_install(value v_name, value v_display, value v_text,
+CAMLprim value caml_winsvc_install(value v_name, value v_display, value v_text,
                                     value v_path) {
   CAMLparam4(v_name, v_display, v_text, v_path);
 
@@ -130,7 +129,7 @@ CAMLprim value caml_service_install(value v_name, value v_display, value v_text,
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value caml_service_remove(value v_name) {
+CAMLprim value caml_winsvc_remove(value v_name) {
   CAMLparam1(v_name);
 
   SC_HANDLE handle_manager;
@@ -172,7 +171,7 @@ CAMLprim value caml_service_remove(value v_name) {
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value caml_service_run(value v_name, value v_run, value v_stop) {
+CAMLprim value caml_winsvc_run(value v_name, value v_run, value v_stop) {
   CAMLparam3(v_name, v_run, v_stop);
   BOOL result;
   // not sure whether it is needed but better stay on the safe side
