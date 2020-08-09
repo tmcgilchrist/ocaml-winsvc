@@ -47,8 +47,51 @@ void call_service_stop(void) {
   caml_c_thread_unregister();
 }
 
-static void raise_error(char *str) {
-  caml_raise_with_string(*exn_service, str);
+#define raise_error(str) caml_raise_with_string(*exn_service, str)
+
+void service_main(DWORD argc, TCHAR **argv) {
+  memset(&service_status, 0, sizeof(SERVICE_STATUS));
+  service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+  service_status.dwServiceSpecificExitCode = 0;
+  handle_service_status =
+      RegisterServiceCtrlHandler(s_service_name, service_ctrl_handler);
+
+  report_status(SERVICE_START_PENDING, NO_ERROR, 2000);
+  report_status(SERVICE_RUNNING, NO_ERROR, 0);
+
+  call_service_run();
+
+  report_status(SERVICE_STOPPED, NO_ERROR, 2000);
+}
+
+void stop_service() {
+  report_status(SERVICE_STOP_PENDING, NO_ERROR, 1000);
+
+  call_service_stop();
+}
+
+BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
+  if (current_state != SERVICE_START_PENDING)
+    service_status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
+  service_status.dwCurrentState = current_state;
+  service_status.dwWin32ExitCode = win32_exitcode;
+  service_status.dwWaitHint = wait_hint;
+  switch (current_state) {
+  case SERVICE_RUNNING:
+  case SERVICE_STOPPED:
+    break;
+  default:
+    service_status.dwCheckPoint = check_point++;
+  }
+  return SetServiceStatus(handle_service_status, &service_status);
+}
+
+void WINAPI service_ctrl_handler(DWORD ctrl_code) {
+  if (ctrl_code == SERVICE_CONTROL_STOP) {
+    stop_service();
+  } else {
+    report_status(service_status.dwCurrentState, NO_ERROR, 0);
+  }
 }
 
 CAMLprim value caml_service_install(value v_name, value v_display, value v_text,
@@ -105,19 +148,12 @@ CAMLprim value caml_service_remove(value v_name) {
 
   memset(&status, 0, sizeof(SERVICE_STATUS));
   if (ControlService(handle_service, SERVICE_CONTROL_STOP, &status)) {
-    //_tprintf(TEXT("Stopping %s.."), SVNSERVICE_NAME);
     Sleep(1000);
     while (QueryServiceStatus(handle_service, &status)) {
       if (status.dwCurrentState != SERVICE_STOP_PENDING)
         break;
-      //_tprintf(TEXT("."));
       Sleep(1000);
     }
-    //_tprintf(TEXT("\r\n"));
-    // if (status.dwCurrentState == SERVICE_STOPPED)
-    //	_tprintf(TEXT("%s stopped.\r\n"), SVNSERVICE_NAME);
-    // else
-    //	_tprintf(TEXT("%s failed to stop.\r\n"), SVNSERVICE_NAME);
   }
 
   result = DeleteService(handle_service);
@@ -135,106 +171,9 @@ CAMLprim value caml_service_remove(value v_name) {
 CAMLprim value caml_service_init(value u) {
   CAMLparam1(u);
 
-  if (NULL == exn_service) {
-    caml_register_generational_global_root(&cb_service_run);
-    caml_register_generational_global_root(&cb_service_stop);
-    exn_service = caml_named_value("Service.Error");
-    if (NULL == exn_service)
-      caml_failwith("Service.init");
-  }
+  caml_register_generational_global_root(&cb_service_run);
+  caml_register_generational_global_root(&cb_service_stop);
+  exn_service = caml_named_value("Service.Error");
 
   CAMLreturn(Val_unit);
-}
-
-void service_main(DWORD argc, TCHAR **argv);
-BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint);
-void WINAPI service_ctrl_handler(DWORD ctrl_code);
-
-static SERVICE_STATUS service_status;
-static SERVICE_STATUS_HANDLE handle_service_status = 0;
-static int check_point = 1;
-
-CAMLprim value caml_service_run(value v_name, value v_run, value v_stop) {
-  CAMLparam3(v_name, v_run, v_stop);
-  BOOL result;
-  // not sure whether it is needed but better stay on the safe side
-  char *s_name = strdup(String_val(v_name));
-  SERVICE_TABLE_ENTRY dispatch_table[] = {
-      {s_name, (LPSERVICE_MAIN_FUNCTION)service_main}, {0, 0}};
-
-  if (Val_unit != cb_service_run) {
-    free(s_name);
-    raise_error("Already running");
-  }
-
-  s_service_name = s_name;
-
-  caml_modify_generational_global_root(&cb_service_run, v_run);
-  caml_modify_generational_global_root(&cb_service_stop, v_stop);
-
-  caml_release_runtime_system();
-  result = StartServiceCtrlDispatcher(dispatch_table);
-  caml_acquire_runtime_system();
-
-  caml_modify_generational_global_root(&cb_service_run, Val_unit);
-  caml_modify_generational_global_root(&cb_service_stop, Val_unit);
-
-  s_service_name = NULL;
-
-  free(s_name);
-
-  if (FALSE == result)
-    raise_error("Failed to run service");
-
-  CAMLreturn(Val_unit);
-}
-
-void service_main(DWORD argc, TCHAR **argv) {
-  // char* z = NULL;
-
-  memset(&service_status, 0, sizeof(SERVICE_STATUS));
-  service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-  service_status.dwServiceSpecificExitCode = 0;
-  handle_service_status =
-      RegisterServiceCtrlHandler(s_service_name, service_ctrl_handler);
-
-  report_status(SERVICE_START_PENDING, NO_ERROR, 2000);
-
-  // caml_startup(&z);
-
-  report_status(SERVICE_RUNNING, NO_ERROR, 0);
-
-  call_service_run();
-
-  report_status(SERVICE_STOPPED, NO_ERROR, 2000);
-}
-
-void stop_service() {
-  report_status(SERVICE_STOP_PENDING, NO_ERROR, 1000);
-
-  call_service_stop();
-}
-
-BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
-  if (current_state != SERVICE_START_PENDING)
-    service_status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
-  service_status.dwCurrentState = current_state;
-  service_status.dwWin32ExitCode = win32_exitcode;
-  service_status.dwWaitHint = wait_hint;
-  switch (current_state) {
-  case SERVICE_RUNNING:
-  case SERVICE_STOPPED:
-    break;
-  default:
-    service_status.dwCheckPoint = check_point++;
-  }
-  return SetServiceStatus(handle_service_status, &service_status);
-}
-
-void WINAPI service_ctrl_handler(DWORD ctrl_code) {
-  if (ctrl_code == SERVICE_CONTROL_STOP) {
-    stop_service();
-  } else {
-    report_status(service_status.dwCurrentState, NO_ERROR, 0);
-  }
 }
