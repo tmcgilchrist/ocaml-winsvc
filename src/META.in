@@ -1,6 +1,0 @@
-name = "winsvc"
-version = "@VERSION@"
-description = "Windows Service Toolkit"
-requires = "threads"
-archive(byte) = "winsvc.cma"
-archive(native) = "winsvc.cmxa"
