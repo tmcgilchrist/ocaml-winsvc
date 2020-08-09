@@ -6,13 +6,9 @@ external remove : string -> unit = "caml_service_remove"
 external run : string -> (unit -> unit) -> (unit -> unit) -> unit
   = "caml_service_run"
 
-external init : unit -> unit = "caml_service_init"
-
 exception Error of string
 
-let () =
-  Callback.register_exception "Service.Error" (Error "register");
-  init ()
+let () = Callback.register_exception "Service.Error" (Error "register");
 
 module type Sig = sig
   val name : string

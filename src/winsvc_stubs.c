@@ -25,7 +25,7 @@
 
 static value cb_service_run = Val_unit;
 static value cb_service_stop = Val_unit;
-static value *exn_service = NULL;
+static value *exn_service = caml_named_value("Service.Error");;
 static char *s_service_name = NULL;
 
 void call_service_run(void) {
@@ -183,15 +183,14 @@ CAMLprim value caml_service_run(value v_name, value v_run, value v_stop) {
 
   s_service_name = s_name;
 
-  caml_modify_generational_global_root(&cb_service_run, v_run);
-  caml_modify_generational_global_root(&cb_service_stop, v_stop);
+  cb_service_run = v_run;
+  cb_service_stop = v_stop;
+  caml_register_generational_global_root(&cb_service_run);
+  caml_register_generational_global_root(&cb_service_stop);
 
   caml_release_runtime_system();
   result = StartServiceCtrlDispatcher(dispatch_table);
   caml_acquire_runtime_system();
-
-  caml_modify_generational_global_root(&cb_service_run, Val_unit);
-  caml_modify_generational_global_root(&cb_service_stop, Val_unit);
 
   s_service_name = NULL;
 
@@ -199,16 +198,6 @@ CAMLprim value caml_service_run(value v_name, value v_run, value v_stop) {
 
   if (FALSE == result)
     raise_error("Failed to run service");
-
-  CAMLreturn(Val_unit);
-}
-
-CAMLprim value caml_service_init(value u) {
-  CAMLparam1(u);
-
-  caml_register_generational_global_root(&cb_service_run);
-  caml_register_generational_global_root(&cb_service_stop);
-  exn_service = caml_named_value("Service.Error");
 
   CAMLreturn(Val_unit);
 }
