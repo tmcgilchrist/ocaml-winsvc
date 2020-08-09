@@ -47,6 +47,10 @@ void call_service_stop(void) {
   caml_c_thread_unregister();
 }
 
+static SERVICE_STATUS service_status;	
+static SERVICE_STATUS_HANDLE handle_service_status = 0;	
+static int check_point = 1;
+
 BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
   if (current_state != SERVICE_START_PENDING)
     service_status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
