@@ -10,7 +10,7 @@
 
 (package
  (name winsvc)
- (synopsis "library to make OCaml program act as a Windows service")
+ (synopsis "Library to make OCaml program act as a Windows service")
  (depends
   (dune (> 2.0)))
 )
