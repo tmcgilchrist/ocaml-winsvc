@@ -47,29 +47,6 @@ void call_service_stop(void) {
   caml_c_thread_unregister();
 }
 
-#define raise_error(str) caml_raise_with_string(*exn_service, str)
-
-void service_main(DWORD argc, TCHAR **argv) {
-  memset(&service_status, 0, sizeof(SERVICE_STATUS));
-  service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
-  service_status.dwServiceSpecificExitCode = 0;
-  handle_service_status =
-      RegisterServiceCtrlHandler(s_service_name, service_ctrl_handler);
-
-  report_status(SERVICE_START_PENDING, NO_ERROR, 2000);
-  report_status(SERVICE_RUNNING, NO_ERROR, 0);
-
-  call_service_run();
-
-  report_status(SERVICE_STOPPED, NO_ERROR, 2000);
-}
-
-void stop_service() {
-  report_status(SERVICE_STOP_PENDING, NO_ERROR, 1000);
-
-  call_service_stop();
-}
-
 BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
   if (current_state != SERVICE_START_PENDING)
     service_status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
@@ -93,6 +70,29 @@ void WINAPI service_ctrl_handler(DWORD ctrl_code) {
     report_status(service_status.dwCurrentState, NO_ERROR, 0);
   }
 }
+
+void service_main(DWORD argc, TCHAR **argv) {
+  memset(&service_status, 0, sizeof(SERVICE_STATUS));
+  service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
+  service_status.dwServiceSpecificExitCode = 0;
+  handle_service_status =
+      RegisterServiceCtrlHandler(s_service_name, service_ctrl_handler);
+
+  report_status(SERVICE_START_PENDING, NO_ERROR, 2000);
+  report_status(SERVICE_RUNNING, NO_ERROR, 0);
+
+  call_service_run();
+
+  report_status(SERVICE_STOPPED, NO_ERROR, 2000);
+}
+
+void stop_service() {
+  report_status(SERVICE_STOP_PENDING, NO_ERROR, 1000);
+
+  call_service_stop();
+}
+
+#define raise_error(str) caml_raise_with_string(*exn_service, str)
 
 CAMLprim value caml_service_install(value v_name, value v_display, value v_text,
                                     value v_path) {
