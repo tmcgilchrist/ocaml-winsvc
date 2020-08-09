@@ -67,6 +67,12 @@ BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
   return SetServiceStatus(handle_service_status, &service_status);
 }
 
+void stop_service() {
+  report_status(SERVICE_STOP_PENDING, NO_ERROR, 1000);
+
+  call_service_stop();
+}
+
 void WINAPI service_ctrl_handler(DWORD ctrl_code) {
   if (ctrl_code == SERVICE_CONTROL_STOP) {
     stop_service();
@@ -88,12 +94,6 @@ void service_main(DWORD argc, TCHAR **argv) {
   call_service_run();
 
   report_status(SERVICE_STOPPED, NO_ERROR, 2000);
-}
-
-void stop_service() {
-  report_status(SERVICE_STOP_PENDING, NO_ERROR, 1000);
-
-  call_service_stop();
 }
 
 #define raise_error(str) caml_raise_with_string(*exn_service, str)
