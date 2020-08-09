@@ -168,6 +168,41 @@ CAMLprim value caml_service_remove(value v_name) {
   CAMLreturn(Val_unit);
 }
 
+CAMLprim value caml_service_run(value v_name, value v_run, value v_stop) {
+  CAMLparam3(v_name, v_run, v_stop);
+  BOOL result;
+  // not sure whether it is needed but better stay on the safe side
+  char *s_name = strdup(String_val(v_name));
+  SERVICE_TABLE_ENTRY dispatch_table[] = {
+      {s_name, (LPSERVICE_MAIN_FUNCTION)service_main}, {0, 0}};
+
+  if (Val_unit != cb_service_run) {
+    free(s_name);
+    raise_error("Already running");
+  }
+
+  s_service_name = s_name;
+
+  caml_modify_generational_global_root(&cb_service_run, v_run);
+  caml_modify_generational_global_root(&cb_service_stop, v_stop);
+
+  caml_release_runtime_system();
+  result = StartServiceCtrlDispatcher(dispatch_table);
+  caml_acquire_runtime_system();
+
+  caml_modify_generational_global_root(&cb_service_run, Val_unit);
+  caml_modify_generational_global_root(&cb_service_stop, Val_unit);
+
+  s_service_name = NULL;
+
+  free(s_name);
+
+  if (FALSE == result)
+    raise_error("Failed to run service");
+
+  CAMLreturn(Val_unit);
+}
+
 CAMLprim value caml_service_init(value u) {
   CAMLparam1(u);
 
