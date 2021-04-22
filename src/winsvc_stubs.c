@@ -99,9 +99,9 @@ void service_main(DWORD argc, WCHAR **argv) {
   report_status(SERVICE_STOPPED, NO_ERROR, 2000);
 }
 
-#define raise_error(str) caml_raise_with_string(*caml_named_value("caml_service_exn"), str)
+#define raise_error(str) caml_raise_with_string(*caml_named_value("winsvc_exn"), str)
 
-CAMLprim value caml_winsvc_install(value v_name, value v_display, value v_text,
+CAMLprim value winsvc_install(value v_name, value v_display, value v_text,
                                     value v_path) {
   CAMLparam4(v_name, v_display, v_text, v_path);
 
@@ -145,7 +145,7 @@ CAMLprim value caml_winsvc_install(value v_name, value v_display, value v_text,
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value caml_winsvc_remove(value v_name) {
+CAMLprim value winsvc_remove(value v_name) {
   CAMLparam1(v_name);
 
   SC_HANDLE handle_manager;
@@ -190,7 +190,7 @@ CAMLprim value caml_winsvc_remove(value v_name) {
   CAMLreturn(Val_unit);
 }
 
-CAMLprim value caml_winsvc_run(value v_name, value v_run, value v_stop) {
+CAMLprim value winsvc_run(value v_name, value v_run, value v_stop) {
   CAMLparam3(v_name, v_run, v_stop);
   BOOL result;
   char_os *s_name = caml_stat_strdup_to_os(String_val(v_name));
