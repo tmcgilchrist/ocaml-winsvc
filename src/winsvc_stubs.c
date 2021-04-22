@@ -31,7 +31,7 @@ static value cb_service_run = Val_unit;
 static value cb_service_stop = Val_unit;
 static char_os *s_service_name = NULL;
 
-void call_service_run(void) {
+static void call_service_run(void) {
   assert(Val_unit != cb_service_run);
   caml_c_thread_register();
   caml_acquire_runtime_system();
@@ -40,7 +40,7 @@ void call_service_run(void) {
   caml_c_thread_unregister();
 }
 
-void call_service_stop(void) {
+static void call_service_stop(void) {
   assert(Val_unit != cb_service_stop);
 
   caml_c_thread_register();
@@ -50,11 +50,11 @@ void call_service_stop(void) {
   caml_c_thread_unregister();
 }
 
-static SERVICE_STATUS service_status;	
-static SERVICE_STATUS_HANDLE handle_service_status = 0;	
+static SERVICE_STATUS service_status;
+static SERVICE_STATUS_HANDLE handle_service_status = 0;
 static int check_point = 1;
 
-BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
+static BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
   if (current_state != SERVICE_START_PENDING)
     service_status.dwControlsAccepted = SERVICE_ACCEPT_STOP;
   service_status.dwCurrentState = current_state;
@@ -70,13 +70,13 @@ BOOL report_status(DWORD current_state, DWORD win32_exitcode, DWORD wait_hint) {
   return SetServiceStatus(handle_service_status, &service_status);
 }
 
-void stop_service() {
+static void stop_service() {
   report_status(SERVICE_STOP_PENDING, NO_ERROR, 1000);
 
   call_service_stop();
 }
 
-void WINAPI service_ctrl_handler(DWORD ctrl_code) {
+static void WINAPI service_ctrl_handler(DWORD ctrl_code) {
   if (ctrl_code == SERVICE_CONTROL_STOP) {
     stop_service();
   } else {
@@ -84,7 +84,7 @@ void WINAPI service_ctrl_handler(DWORD ctrl_code) {
   }
 }
 
-void service_main(DWORD argc, WCHAR **argv) {
+static void service_main(DWORD argc, WCHAR **argv) {
   memset(&service_status, 0, sizeof(SERVICE_STATUS));
   service_status.dwServiceType = SERVICE_WIN32_OWN_PROCESS;
   service_status.dwServiceSpecificExitCode = 0;
