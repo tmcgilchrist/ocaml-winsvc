@@ -111,7 +111,7 @@ CAMLprim value winsvc_install(value v_name, value v_display, value v_text,
   char_os *name, *display, *text, *path;
 
   handle_manager = OpenSCManager(0, 0, SC_MANAGER_ALL_ACCESS);
-  if (handle_manager == 0) {
+  if (handle_manager == NULL) {
     raise_error("Failed to open service control manager");
   }
 
@@ -128,7 +128,7 @@ CAMLprim value winsvc_install(value v_name, value v_display, value v_text,
   caml_stat_free(display);
   caml_stat_free(path);
 
-  if (handle_service == 0) {
+  if (handle_service == NULL) {
     CloseServiceHandle(handle_manager);
     raise_error("Failed to create service in service control manager");
   }
@@ -155,7 +155,7 @@ CAMLprim value winsvc_remove(value v_name) {
   char_os *name;
 
   handle_manager = OpenSCManager(0, 0, SC_MANAGER_ALL_ACCESS);
-  if (handle_manager == 0) {
+  if (handle_manager == NULL) {
     raise_error("Failed to open service control manager");
   }
 
@@ -163,7 +163,7 @@ CAMLprim value winsvc_remove(value v_name) {
   handle_service =
       OpenService(handle_manager, name, SERVICE_ALL_ACCESS);
   caml_stat_free(name);
-  if (handle_service == 0) {
+  if (handle_service == NULL) {
     CloseServiceHandle(handle_manager);
     raise_error("Failed to open service in service control manager");
   }
@@ -183,7 +183,7 @@ CAMLprim value winsvc_remove(value v_name) {
   CloseServiceHandle(handle_service);
   CloseServiceHandle(handle_manager);
 
-  if (0 == result) {
+  if (!result) {
     raise_error("Failed to remove service");
   }
 
@@ -221,7 +221,7 @@ CAMLprim value winsvc_run(value v_name, value v_run, value v_stop) {
   s_service_name = NULL;
   caml_stat_free(s_name);
 
-  if (FALSE == result)
+  if (!result)
     raise_error("Failed to run service");
 
   CAMLreturn(Val_unit);
