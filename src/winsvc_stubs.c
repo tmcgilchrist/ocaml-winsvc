@@ -15,8 +15,9 @@
 #define _UNICODE
 #define WIN32_LEAN_AND_MEAN // Exclude rarely-used stuff from Windows headers
 #include <assert.h>
-#include <stdio.h>
 #include <windows.h>
+#define STRSAFE_NO_CCH_FUNCTIONS
+#include <strsafe.h>
 
 #define CAML_NAME_SPACE
 #define CAML_INTERNALS
@@ -99,7 +100,29 @@ static void service_main(DWORD argc, WCHAR **argv) {
   report_status(SERVICE_STOPPED, NO_ERROR, 2000);
 }
 
-#define raise_error(str) caml_raise_with_string(*caml_named_value("winsvc_exn"), str)
+static void raise_error(const char_os *prefix, DWORD rc) {
+  LPVOID buffer = NULL;
+  char_os msg[2048] = { 0 };
+
+  FormatMessage(
+    FORMAT_MESSAGE_ALLOCATE_BUFFER |
+    FORMAT_MESSAGE_FROM_SYSTEM |
+    FORMAT_MESSAGE_IGNORE_INSERTS,
+    NULL,
+    rc,
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+    (LPTSTR) &buffer,
+    0, NULL);
+  StringCbPrintf(
+    msg, sizeof(msg)/sizeof(msg[0]),
+    L"%s: %s",
+    prefix,
+    buffer);
+  LocalFree(buffer);
+
+  caml_raise_with_arg(*caml_named_value("winsvc_exn"),
+                      caml_copy_string_of_os(msg));
+}
 
 CAMLprim value winsvc_install(value v_name, value v_display, value v_text,
                                     value v_path) {
@@ -109,10 +132,11 @@ CAMLprim value winsvc_install(value v_name, value v_display, value v_text,
   SC_HANDLE handle_service;
   SERVICE_DESCRIPTION description;
   char_os *name, *display, *text, *path;
+  DWORD rc;
 
   handle_manager = OpenSCManager(0, 0, SC_MANAGER_ALL_ACCESS);
   if (handle_manager == NULL) {
-    raise_error("Failed to open service control manager");
+    raise_error(L"OpenSCManager", GetLastError());
   }
 
   name = caml_stat_strdup_to_os(String_val(v_name));
@@ -123,6 +147,7 @@ CAMLprim value winsvc_install(value v_name, value v_display, value v_text,
       handle_manager, name, display,
       SERVICE_ALL_ACCESS, SERVICE_WIN32_OWN_PROCESS, SERVICE_AUTO_START,
       SERVICE_ERROR_NORMAL, path, 0, 0, 0, 0, 0);
+  rc = GetLastError();
 
   caml_stat_free(name);
   caml_stat_free(display);
@@ -130,7 +155,7 @@ CAMLprim value winsvc_install(value v_name, value v_display, value v_text,
 
   if (handle_service == NULL) {
     CloseServiceHandle(handle_manager);
-    raise_error("Failed to create service in service control manager");
+    raise_error(L"CreateService", rc);
   }
 
   text = caml_stat_strdup_to_os(String_val(v_text));
@@ -153,10 +178,11 @@ CAMLprim value winsvc_remove(value v_name) {
   SERVICE_STATUS status;
   BOOL result;
   char_os *name;
+  DWORD rc;
 
   handle_manager = OpenSCManager(0, 0, SC_MANAGER_ALL_ACCESS);
   if (handle_manager == NULL) {
-    raise_error("Failed to open service control manager");
+    raise_error(L"OpenSCManager", GetLastError());
   }
 
   name = caml_stat_strdup_to_os(String_val(v_name));
@@ -165,7 +191,7 @@ CAMLprim value winsvc_remove(value v_name) {
   caml_stat_free(name);
   if (handle_service == NULL) {
     CloseServiceHandle(handle_manager);
-    raise_error("Failed to open service in service control manager");
+    raise_error(L"OpenService", GetLastError());
   }
 
   memset(&status, 0, sizeof(SERVICE_STATUS));
@@ -179,12 +205,13 @@ CAMLprim value winsvc_remove(value v_name) {
   }
 
   result = DeleteService(handle_service);
+  rc = GetLastError();
 
   CloseServiceHandle(handle_service);
   CloseServiceHandle(handle_manager);
 
   if (!result) {
-    raise_error("Failed to remove service");
+    raise_error(L"DeleteService", rc);
   }
 
   CAMLreturn(Val_unit);
@@ -196,10 +223,11 @@ CAMLprim value winsvc_run(value v_name, value v_run, value v_stop) {
   char_os *s_name = caml_stat_strdup_to_os(String_val(v_name));
   SERVICE_TABLE_ENTRY dispatch_table[] = {
       {s_name, (LPSERVICE_MAIN_FUNCTION)service_main}, {0, 0}};
+  DWORD rc;
 
   if (Val_unit != cb_service_run) {
     caml_stat_free(s_name);
-    raise_error("Already running");
+    caml_raise_with_string(*caml_named_value("winsvc_exn"), "Already running");
   }
 
   s_service_name = s_name;
@@ -211,6 +239,7 @@ CAMLprim value winsvc_run(value v_name, value v_run, value v_stop) {
 
   caml_release_runtime_system();
   result = StartServiceCtrlDispatcher(dispatch_table);
+  rc = GetLastError();
   caml_acquire_runtime_system();
 
   caml_remove_generational_global_root(&cb_service_run);
@@ -222,7 +251,7 @@ CAMLprim value winsvc_run(value v_name, value v_run, value v_stop) {
   caml_stat_free(s_name);
 
   if (!result)
-    raise_error("Failed to run service");
+    raise_error(L"StartServiceCtrlDispatcher", rc);
 
   CAMLreturn(Val_unit);
 }
