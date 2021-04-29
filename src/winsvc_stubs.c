@@ -250,8 +250,12 @@ CAMLprim value winsvc_run(value v_name, value v_run, value v_stop) {
   s_service_name = NULL;
   caml_stat_free(s_name);
 
-  if (!result)
-    raise_error(L"StartServiceCtrlDispatcher", rc);
+  if (!result) {
+    if (rc == ERROR_FAILED_SERVICE_CONTROLLER_CONNECT)
+      caml_failwith("ERROR_FAILED_SERVICE_CONTROLLER_CONNECT");
+    else
+      raise_error(L"StartServiceCtrlDispatcher", rc);
+  }
 
   CAMLreturn(Val_unit);
 }
