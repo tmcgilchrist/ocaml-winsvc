@@ -1,14 +1,14 @@
 external install : string -> string -> string -> string -> unit
-  = "winsvc_install"
+  = "ocaml_winsvc_install"
 
-external remove : string -> unit = "winsvc_remove"
+external remove : string -> unit = "ocaml_winsvc_remove"
 
 external run : string -> (unit -> unit) -> (unit -> unit) -> unit
-  = "winsvc_run"
+  = "ocaml_winsvc_run"
 
 exception Error of string
 
-let () = Callback.register_exception "winsvc_exn" (Error "register");
+let () = Callback.register_exception "ocaml_winsvc_exn" (Error "register")
 
 module type Sig = sig
   val name : string

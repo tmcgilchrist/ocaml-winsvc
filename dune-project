@@ -1,4 +1,4 @@
-(lang dune 2.0)
+(lang dune 2.8)
 (version 1.0.0)
 (name winsvc)
 (source (github savonet/ocaml-winsvc))
@@ -11,6 +11,4 @@
 (package
  (name winsvc)
  (synopsis "Library to make OCaml program act as a Windows service")
- (depends
-  (dune (> 2.0)))
-)
+ (depends dune))
