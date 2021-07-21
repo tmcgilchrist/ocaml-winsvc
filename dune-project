@@ -11,4 +11,5 @@
 (package
  (name winsvc)
  (synopsis "Library to make OCaml program act as a Windows service")
- (depends dune))
+ (depends
+  (ocaml (>= 4.06))))
