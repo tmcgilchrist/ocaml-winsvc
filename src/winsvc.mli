@@ -1,4 +1,4 @@
-(** Windows service 
+(** Windows service
 
     Only one service in process is supported
 *)
@@ -23,7 +23,7 @@ module type Sig = sig
   val stop : unit -> unit
 end
 
-module Make (S : Sig) : sig
+module Make (_ : Sig) : sig
   (** Install current executable as Windows service, started with the given arguments *)
   val install : unit -> unit
 
