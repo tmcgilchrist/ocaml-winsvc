@@ -1,5 +1,4 @@
-(lang dune 2.8)
-(version 1.0.1)
+(lang dune 3.0)
 (name winsvc)
 (source (github savonet/ocaml-winsvc))
 (license GPL-2.0)
